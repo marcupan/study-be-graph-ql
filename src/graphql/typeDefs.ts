@@ -1,0 +1,103 @@
+import { gql } from 'apollo-server-express';
+
+export const typeDefs = gql`
+  type User {
+    id: ID!
+    name: String!
+    email: String!
+    createdAt: String!
+    updatedAt: String!
+    events: [Event!]
+    attendingEvents: [Event!]
+  }
+
+  type Event {
+    id: ID!
+    title: String!
+    description: String!
+    date: String!
+    time: String!
+    location: String!
+    imageUrl: String
+    creator: User!
+    attendees: [User!]
+    createdAt: String!
+    updatedAt: String!
+  }
+
+  type AuthData {
+    userId: ID!
+    token: String!
+    tokenExpiration: Int!
+  }
+
+  type PageInfo {
+    hasNextPage: Boolean!
+    hasPreviousPage: Boolean!
+    currentPage: Int!
+    totalPages: Int!
+  }
+
+  type EventConnection {
+    edges: [Event!]!
+    pageInfo: PageInfo!
+    totalCount: Int!
+  }
+
+  type UserConnection {
+    edges: [User!]!
+    pageInfo: PageInfo!
+    totalCount: Int!
+  }
+
+  input EventInput {
+    title: String!
+    description: String!
+    date: String!
+    time: String!
+    location: String!
+    imageUrl: String
+  }
+
+  input UserInput {
+    name: String!
+    email: String!
+    password: String!
+  }
+
+  input PaginationInput {
+    page: Int
+    limit: Int
+  }
+
+  type Query {
+    events(pagination: PaginationInput): EventConnection!
+    event(id: ID!): Event
+    users(pagination: PaginationInput): UserConnection!
+    user(id: ID!): User
+    me: User
+    eventsByDate(date: String!, pagination: PaginationInput): EventConnection!
+    eventsByLocation(location: String!, pagination: PaginationInput): EventConnection!
+    eventsByUser(userId: ID!, pagination: PaginationInput): EventConnection!
+    myEvents(pagination: PaginationInput): EventConnection!
+    myAttendingEvents(pagination: PaginationInput): EventConnection!
+  }
+
+  type Mutation {
+    createUser(userInput: UserInput!): AuthData!
+    login(email: String!, password: String!): AuthData!
+    createEvent(eventInput: EventInput!): Event!
+    updateEvent(id: ID!, eventInput: EventInput!): Event!
+    deleteEvent(id: ID!): Boolean!
+    attendEvent(eventId: ID!): Event!
+    cancelAttendance(eventId: ID!): Event!
+  }
+
+  type Subscription {
+    eventCreated: Event!
+    eventUpdated(eventId: ID): Event!
+    eventDeleted: ID!
+    userJoinedEvent(eventId: ID!): User!
+    userLeftEvent(eventId: ID!): User!
+  }
+`;
