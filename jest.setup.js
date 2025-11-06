@@ -9,11 +9,11 @@ process.env.MONGODB_URI = 'mongodb://localhost:27017/eventflow_test';
 
 // Silence console logs during tests
 global.console = {
-  ...console,
-  log: jest.fn(),
-  info: jest.fn(),
-  debug: jest.fn(),
-  // Keep error and warn for debugging
-  error: console.error,
-  warn: console.warn,
+    ...console,
+    log: jest.fn(),
+    info: jest.fn(),
+    debug: jest.fn(),
+    // Keep error and warn for debugging
+    error: console.error,
+    warn: console.warn,
 };
