@@ -1,7 +1,7 @@
 import {IUser, User} from '../../models/User';
 import {Event} from '../../models/Event';
 import {generateToken, hashPassword, verifyPassword, requireAuth} from '../../utils/auth';
-import {UserInputError, AuthenticationError} from 'apollo-server-express';
+import { GraphQLError } from 'graphql';
 import {paginateQuery} from '../../utils/pagination';
 import {Loaders} from '../../utils/dataLoaders';
 
@@ -31,7 +31,7 @@ interface Context {
 
 export const userResolvers = {
     Query: {
-        users: async (_: any, { pagination }: { pagination?: PaginationInput }) => {
+        users: async (_: any, {pagination}: { pagination?: PaginationInput }) => {
             try {
                 const query = User.find();
                 return await paginateQuery(query, User, {}, pagination);
@@ -39,7 +39,7 @@ export const userResolvers = {
                 throw new Error('Error fetching users');
             }
         },
-        user: async (_: any, {id}: { id: string }, { loaders }: Context) => {
+        user: async (_: any, {id}: { id: string }, {loaders}: Context) => {
             try {
                 const user = await loaders.userLoader.load(id);
                 if (!user) {
@@ -68,7 +68,7 @@ export const userResolvers = {
                 // Check if user already exists
                 const existingUser = await User.findOne({email: userInput.email});
                 if (existingUser) {
-                    throw new UserInputError('User already exists');
+                    throw new GraphQLError('User already exists', { extensions: { code: 'BAD_USER_INPUT' } });
                 }
 
                 // Hash password
@@ -101,13 +101,13 @@ export const userResolvers = {
                 // Find user by email
                 const user = await User.findOne({email});
                 if (!user) {
-                    throw new AuthenticationError('Invalid credentials');
+                    throw new GraphQLError('Invalid credentials', { extensions: { code: 'UNAUTHENTICATED' } });
                 }
 
                 // Verify password
                 const isValid = await verifyPassword(password, user.password);
                 if (!isValid) {
-                    throw new AuthenticationError('Invalid credentials');
+                    throw new GraphQLError('Invalid credentials', { extensions: { code: 'UNAUTHENTICATED' } });
                 }
 
                 // Generate token
@@ -124,14 +124,14 @@ export const userResolvers = {
         },
     },
     User: {
-        events: async (parent: IUser, _: any, { loaders }: Context) => {
+        events: async (parent: IUser, _: any, {loaders}: Context) => {
             try {
                 return await loaders.userEventsLoader.load(parent.id);
             } catch (err) {
                 throw new Error('Error fetching events');
             }
         },
-        attendingEvents: async (parent: IUser, _: any, { loaders }: Context) => {
+        attendingEvents: async (parent: IUser, _: any, {loaders}: Context) => {
             try {
                 return await loaders.userAttendingEventsLoader.load(parent.id);
             } catch (err) {

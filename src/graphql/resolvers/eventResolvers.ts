@@ -1,11 +1,11 @@
 import {IEvent, Event} from '../../models/Event';
 import {User} from '../../models/User';
 import {requireAuth} from '../../utils/auth';
-import {UserInputError, ForbiddenError} from 'apollo-server-express';
+import { GraphQLError } from 'graphql';
 import {paginateQuery} from '../../utils/pagination';
 import {Loaders} from '../../utils/dataLoaders';
-import { PubSub } from 'graphql-subscriptions';
-import { TOPICS } from './subscriptionResolvers';
+import {PubSub} from 'graphql-subscriptions';
+import {TOPICS} from './subscriptionResolvers';
 
 interface EventInput {
     title: string;
@@ -32,7 +32,7 @@ interface Context {
 
 export const eventResolvers = {
     Query: {
-        events: async (_: any, { pagination }: { pagination?: PaginationInput }) => {
+        events: async (_: any, {pagination}: { pagination?: PaginationInput }) => {
             try {
                 const query = Event.find().sort({createdAt: -1});
                 return await paginateQuery(query, Event, {}, pagination);
@@ -40,7 +40,7 @@ export const eventResolvers = {
                 throw new Error('Error fetching events');
             }
         },
-        event: async (_: any, {id}: { id: string }, { loaders }: Context) => {
+        event: async (_: any, {id}: { id: string }, {loaders}: Context) => {
             try {
                 const event = await loaders.eventLoader.load(id);
                 if (!event) {
@@ -76,7 +76,10 @@ export const eventResolvers = {
                 throw new Error('Error fetching events by date');
             }
         },
-        eventsByLocation: async (_: any, {location, pagination}: { location: string, pagination?: PaginationInput }) => {
+        eventsByLocation: async (_: any, {location, pagination}: {
+            location: string,
+            pagination?: PaginationInput
+        }) => {
             try {
                 // Case-insensitive search for location
                 const filter = {
@@ -98,7 +101,7 @@ export const eventResolvers = {
                 throw new Error('Error fetching events by user');
             }
         },
-        myEvents: requireAuth(async (_: any, { pagination }: { pagination?: PaginationInput }, {user}: Context) => {
+        myEvents: requireAuth(async (_: any, {pagination}: { pagination?: PaginationInput }, {user}: Context) => {
             try {
                 const filter = {creator: user!.id};
                 const query = Event.find(filter).sort({createdAt: -1});
@@ -107,7 +110,9 @@ export const eventResolvers = {
                 throw new Error('Error fetching your events');
             }
         }),
-        myAttendingEvents: requireAuth(async (_: any, { pagination }: { pagination?: PaginationInput }, {user}: Context) => {
+        myAttendingEvents: requireAuth(async (_: any, {pagination}: {
+            pagination?: PaginationInput
+        }, {user}: Context) => {
             try {
                 const filter = {attendees: user!.id};
                 const query = Event.find(filter).sort({date: 1});
@@ -129,7 +134,7 @@ export const eventResolvers = {
                 const result = await event.save();
 
                 // Publish the event creation for subscriptions
-                pubsub.publish(TOPICS.EVENT_CREATED, { eventCreated: result });
+                pubsub.publish(TOPICS.EVENT_CREATED, {eventCreated: result});
 
                 return result;
             } catch (err) {
@@ -144,12 +149,12 @@ export const eventResolvers = {
                 // Find the event
                 const event = await Event.findById(id);
                 if (!event) {
-                    throw new UserInputError('Event not found');
+                    throw new GraphQLError('Event not found', { extensions: { code: 'BAD_USER_INPUT' } });
                 }
 
                 // Check if the user is the creator of the event
                 if (event.creator.toString() !== user!.id) {
-                    throw new ForbiddenError('Not authorized to update this event');
+                    throw new GraphQLError('Not authorized to update this event', { extensions: { code: 'FORBIDDEN' } });
                 }
 
                 // Update the event
@@ -160,7 +165,7 @@ export const eventResolvers = {
                 );
 
                 // Publish the event update for subscriptions
-                pubsub.publish(TOPICS.EVENT_UPDATED, { eventUpdated: updatedEvent });
+                pubsub.publish(TOPICS.EVENT_UPDATED, {eventUpdated: updatedEvent});
 
                 return updatedEvent;
             } catch (err) {
@@ -169,39 +174,36 @@ export const eventResolvers = {
         }),
         deleteEvent: requireAuth(async (_: any, {id}: { id: string }, {user, pubsub}: Context) => {
             try {
-                // Find the event
                 const event = await Event.findById(id);
                 if (!event) {
-                    throw new UserInputError('Event not found');
+                    throw new GraphQLError('Event not found', { extensions: { code: 'BAD_USER_INPUT' } });
                 }
 
                 // Check if the user is the creator of the event
                 if (event.creator.toString() !== user!.id) {
-                    throw new ForbiddenError('Not authorized to delete this event');
+                    throw new GraphQLError('Not authorized to delete this event', { extensions: { code: 'FORBIDDEN' } });
                 }
 
                 // Delete the event
                 await Event.findByIdAndDelete(id);
 
                 // Publish the event deletion for subscriptions
-                pubsub.publish(TOPICS.EVENT_DELETED, { eventDeleted: id });
+                pubsub.publish(TOPICS.EVENT_DELETED, {eventDeleted: id});
 
                 return true;
             } catch (err) {
                 throw err;
             }
         }),
-        attendEvent: requireAuth(async (_: any, {eventId}: { eventId: string }, {user, pubsub, loaders}: Context) => {
+        attendEvent: requireAuth(async (_: any, {eventId}: { eventId: string }, {user, pubsub, loaders}: Context, info: any) => {
             try {
                 // Find the event
                 const event = await Event.findById(eventId);
                 if (!event) {
-                    throw new UserInputError('Event not found');
+                    throw new GraphQLError('Event not found', { extensions: { code: 'BAD_USER_INPUT' } });
                 }
-
-                // Check if user is already attending
                 if (event.attendees.includes(user!.id as any)) {
-                    throw new UserInputError('Already attending this event');
+                    throw new GraphQLError('Already attending this event', { extensions: { code: 'BAD_USER_INPUT' } });
                 }
 
                 // Add user to attendees
@@ -222,17 +224,21 @@ export const eventResolvers = {
                 throw err;
             }
         }),
-        cancelAttendance: requireAuth(async (_: any, {eventId}: { eventId: string }, {user, pubsub, loaders}: Context) => {
+        cancelAttendance: requireAuth(async (_: any, {eventId}: { eventId: string }, {
+            user,
+            pubsub,
+            loaders
+        }: Context, info: any) => {
             try {
                 // Find the event
                 const event = await Event.findById(eventId);
                 if (!event) {
-                    throw new UserInputError('Event not found');
+                    throw new GraphQLError('Event not found', { extensions: { code: 'BAD_USER_INPUT' } });
                 }
 
                 // Check if user is attending
                 if (!event.attendees.includes(user!.id as any)) {
-                    throw new UserInputError('Not attending this event');
+                    throw new GraphQLError('Not attending this event', { extensions: { code: 'BAD_USER_INPUT' } });
                 }
 
                 // Get the user data for the subscription before removing from attendees
@@ -257,14 +263,14 @@ export const eventResolvers = {
         }),
     },
     Event: {
-        creator: async (parent: IEvent, _: any, { loaders }: Context) => {
+        creator: async (parent: IEvent, _: any, {loaders}: Context, info: any) => {
             try {
                 return await loaders.userLoader.load(parent.creator.toString());
             } catch (err) {
                 throw new Error('Error fetching creator');
             }
         },
-        attendees: async (parent: IEvent, _: any, { loaders }: Context) => {
+        attendees: async (parent: IEvent, _: any, {loaders}: Context, info: any) => {
             try {
                 return await loaders.eventAttendeesLoader.load(parent.id);
             } catch (err) {
