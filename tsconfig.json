@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "target": "es2018",
-    "module": "commonjs",
+    "module": "esnext",
     "lib": [
       "es2018",
       "esnext.asynciterable"
@@ -13,7 +13,10 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
-    "moduleResolution": "node"
+    "moduleResolution": "bundler"
+  },
+  "ts-node": {
+    "esm": true
   },
   "include": [
     "src/**/*"

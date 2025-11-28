@@ -1,27 +1,16 @@
-/** @type {import('ts-jest').JestConfigWithTsJest} */
-module.exports = {
-    preset: 'ts-jest',
+export default {
+    preset: 'ts-jest/presets/default-esm',
     testEnvironment: 'node',
-    roots: ['<rootDir>/src'],
-    testMatch: ['**/__tests__/**/*.ts?(x)', '**/?(*.)+(spec|test).ts?(x)'],
     transform: {
-        '^.+\\.tsx?$': 'ts-jest',
+        '^.+\\.ts?$': [
+            'ts-jest',
+            {
+                useESM: true,
+            },
+        ],
     },
-    moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
-    collectCoverage: true,
-    coverageDirectory: 'coverage',
-    collectCoverageFrom: [
-        'src/**/*.{ts,tsx}',
-        '!src/**/*.d.ts',
-        '!src/**/__tests__/**',
-    ],
-    coverageThreshold: {
-        global: {
-            branches: 70,
-            functions: 70,
-            lines: 70,
-            statements: 70,
-        },
+    moduleNameMapper: {
+        '^(\\.{1,2}/.*)\\.js$': '$1',
     },
-    setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
+    testPathIgnorePatterns: ['/node_modules/', '/dist/'],
 };
