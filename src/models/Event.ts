@@ -1,5 +1,5 @@
 import mongoose, {Document, Schema} from 'mongoose';
-import {IUser} from './User';
+import {IUser} from './User.js';
 
 // Define the interface for an Event document
 export interface IEvent extends Document {
