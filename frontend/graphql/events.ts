@@ -2,25 +2,25 @@ import { gql } from '@apollo/client';
 
 // Fragment for event fields to reuse across queries
 export const EVENT_FIELDS = gql`
-  fragment EventFields on Event {
-    id
-    title
-    description
-    date
-    time
-    location
-    imageUrl
-    createdAt
-    updatedAt
-    creator {
-      id
-      name
+    fragment EventFields on Event {
+        id
+        title
+        description
+        date
+        time
+        location
+        imageUrl
+        createdAt
+        updatedAt
+        creator {
+            id
+            name
+        }
+        attendees {
+            id
+            name
+        }
     }
-    attendees {
-      id
-      name
-    }
-  }
 `;
 
 // Queries
