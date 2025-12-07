@@ -1,6 +1,6 @@
 import {withFilter, PubSub} from 'graphql-subscriptions';
-import {IUser} from '../../models/User';
-import {IEvent} from '../../models/Event';
+import {IUser} from '../../models/User.js';
+import {IEvent} from '../../models/Event.js';
 
 // Extend PubSub type to include an asyncIterator method
 interface ExtendedPubSub extends PubSub {

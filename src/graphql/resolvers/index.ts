@@ -1,6 +1,6 @@
-import {userResolvers} from './userResolvers';
-import {eventResolvers} from './eventResolvers';
-import {subscriptionResolvers} from './subscriptionResolvers';
+import {userResolvers} from './userResolvers.js';
+import {eventResolvers} from './eventResolvers.js';
+import {subscriptionResolvers} from './subscriptionResolvers.js';
 
 // Merge all resolvers
 export const resolvers = {

@@ -1,7 +1,7 @@
-import {eventResolvers} from '../eventResolvers';
-import {Event} from '../../../models/Event';
-import {User} from '../../../models/User';
-import * as auth from '../../../utils/auth';
+import {eventResolvers} from '../eventResolvers.js';
+import {Event} from '../../../models/Event.js';
+import {User} from '../../../models/User.js';
+import * as auth from '../../../utils/auth.js';
 import { GraphQLError } from 'graphql';
 
 // Mock the models and auth utilities
@@ -23,9 +23,11 @@ jest.mock('../../../utils/pagination', () => ({
     })
 }));
 
+import {mockRequireAuth} from '../../../__tests__/utils/testServer.js';
 describe('Event Resolvers', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        mockRequireAuth();
     });
 
     describe('Query', () => {
@@ -38,7 +40,7 @@ describe('Event Resolvers', () => {
                 mockFind.mockReturnValue({sort: mockSort});
 
                 // Act
-                const result = await eventResolvers.Query.events(null, {}, {} as any, {} as any);
+                const result = await eventResolvers.Query.events(null, {});
 
                 // Assert
                 expect(mockFind).toHaveBeenCalled();
@@ -57,7 +59,7 @@ describe('Event Resolvers', () => {
                 });
 
                 // Act & Assert
-                await expect(eventResolvers.Query.events(null, {}, {} as any, {} as any))
+                await expect(eventResolvers.Query.events(null, {}))
                     .rejects.toThrow('Error fetching events');
             });
         });
@@ -75,7 +77,7 @@ describe('Event Resolvers', () => {
                 };
 
                 // Act
-                const result = await eventResolvers.Query.event(null, {id: '1'}, mockContext as any, {} as any);
+                const result = await eventResolvers.Query.event(null, {id: '1'}, mockContext as any);
 
                 // Assert
                 expect(mockContext.loaders.eventLoader.load).toHaveBeenCalledWith('1');
@@ -93,7 +95,7 @@ describe('Event Resolvers', () => {
                 };
 
                 // Act & Assert
-                await expect(eventResolvers.Query.event(null, {id: '999'}, mockContext as any, {} as any))
+                await expect(eventResolvers.Query.event(null, {id: '999'}, mockContext as any))
                     .rejects.toThrow('Event not found');
             });
         });
@@ -109,7 +111,7 @@ describe('Event Resolvers', () => {
                 const date = '2023-01-01';
 
                 // Act
-                const result = await eventResolvers.Query.eventsByDate(null, {date}, {} as any, {} as any);
+                const result = await eventResolvers.Query.eventsByDate(null, {date});
 
                 // Assert
                 expect(mockFind).toHaveBeenCalledWith(expect.objectContaining({
@@ -136,12 +138,6 @@ describe('Event Resolvers', () => {
                     user: {id: '1', email: 'test@example.com'}
                 };
 
-                // Mock requireAuth to pass through the resolver
-                (auth.requireAuth as jest.Mock).mockImplementation((resolver) => {
-                    return resolver;
-                });
-
-                // Act
                 const result = await eventResolvers.Query.myEvents(null, {}, mockContext as any, {} as any);
 
                 // Assert
@@ -186,12 +182,6 @@ describe('Event Resolvers', () => {
                     save: mockSave
                 }));
 
-                // Mock requireAuth to pass through the resolver
-                (auth.requireAuth as jest.Mock).mockImplementation((resolver) => {
-                    return resolver;
-                });
-
-                // Act
                 const result = await eventResolvers.Mutation.createEvent(
                     null,
                     {eventInput},
@@ -252,12 +242,6 @@ describe('Event Resolvers', () => {
                 // Mock Event.findByIdAndUpdate
                 (Event.findByIdAndUpdate as jest.Mock).mockResolvedValue(mockUpdatedEvent);
 
-                // Mock requireAuth to pass through the resolver
-                (auth.requireAuth as jest.Mock).mockImplementation((resolver) => {
-                    return resolver;
-                });
-
-                // Act
                 const result = await eventResolvers.Mutation.updateEvent(
                     null,
                     {id: '1', eventInput},
@@ -293,12 +277,6 @@ describe('Event Resolvers', () => {
                 // Mock Event.findById to return null
                 (Event.findById as jest.Mock).mockResolvedValue(null);
 
-                // Mock requireAuth to pass through the resolver
-                (auth.requireAuth as jest.Mock).mockImplementation((resolver) => {
-                    return resolver;
-                });
-
-                // Act & Assert
                 await expect(eventResolvers.Mutation.updateEvent(
                     null,
                     {id: '999', eventInput},
@@ -330,12 +308,6 @@ describe('Event Resolvers', () => {
                 // Mock Event.findById
                 (Event.findById as jest.Mock).mockResolvedValue(mockEvent);
 
-                // Mock requireAuth to pass through the resolver
-                (auth.requireAuth as jest.Mock).mockImplementation((resolver) => {
-                    return resolver;
-                });
-
-                // Act & Assert
                 await expect(eventResolvers.Mutation.updateEvent(
                     null,
                     {id: '1', eventInput},
@@ -379,12 +351,6 @@ describe('Event Resolvers', () => {
                 // Mock Event.findById
                 (Event.findById as jest.Mock).mockResolvedValue(mockEvent);
 
-                // Mock requireAuth to pass through the resolver
-                (auth.requireAuth as jest.Mock).mockImplementation((resolver) => {
-                    return resolver;
-                });
-
-                // Act
                 const result = await eventResolvers.Mutation.attendEvent(
                     null,
                     {eventId: '1'},
@@ -420,12 +386,6 @@ describe('Event Resolvers', () => {
                 // Mock Event.findById
                 (Event.findById as jest.Mock).mockResolvedValue(mockEvent);
 
-                // Mock requireAuth to pass through the resolver
-                (auth.requireAuth as jest.Mock).mockImplementation((resolver) => {
-                    return resolver;
-                });
-
-                // Act & Assert
                 await expect(eventResolvers.Mutation.attendEvent(
                     null,
                     {eventId: '1'},

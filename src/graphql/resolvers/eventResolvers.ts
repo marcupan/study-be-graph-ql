@@ -1,11 +1,11 @@
-import {IEvent, Event} from '../../models/Event';
-import {User} from '../../models/User';
-import {requireAuth} from '../../utils/auth';
+import {IEvent, Event} from '../../models/Event.js';
+import {User} from '../../models/User.js';
 import { GraphQLError } from 'graphql';
-import {paginateQuery} from '../../utils/pagination';
-import {Loaders} from '../../utils/dataLoaders';
+import {paginateQuery} from '../../utils/pagination.js';
+import {Loaders} from '../../utils/dataLoaders.js';
 import {PubSub} from 'graphql-subscriptions';
-import {TOPICS} from './subscriptionResolvers';
+import {TOPICS} from './subscriptionResolvers.js';
+import {requireAuth} from "../../utils/auth.js";
 
 interface EventInput {
     title: string;

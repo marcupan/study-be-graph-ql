@@ -1,9 +1,9 @@
-import {IUser, User} from '../../models/User';
-import {Event} from '../../models/Event';
-import {generateToken, hashPassword, verifyPassword, requireAuth} from '../../utils/auth';
+import {IUser, User} from '../../models/User.js';
+import {Event} from '../../models/Event.js';
+import {generateToken, hashPassword, verifyPassword, requireAuth} from '../../utils/auth.js';
 import { GraphQLError } from 'graphql';
-import {paginateQuery} from '../../utils/pagination';
-import {Loaders} from '../../utils/dataLoaders';
+import {paginateQuery} from '../../utils/pagination.js';
+import {Loaders} from '../../utils/dataLoaders.js';
 
 interface UserInput {
     name: string;
