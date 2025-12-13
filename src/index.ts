@@ -1,29 +1,132 @@
-import express from 'express';
+import express, {Request} from 'express';
 import http from 'http';
-import { ApolloServer } from '@apollo/server';
-import { expressMiddleware } from '@apollo/server/express4';
-import { ApolloServerPluginDrainHttpServer } from '@apollo/server/plugin/drainHttpServer';
+import cors from 'cors';
+import {ApolloServer} from '@apollo/server';
+import {expressMiddleware} from '@as-integrations/express5';
+import {ApolloServerPluginDrainHttpServer} from '@apollo/server/plugin/drainHttpServer';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
-import cors from 'cors';
-import {typeDefs} from './graphql/typeDefs';
-import {resolvers} from './graphql/resolvers';
-import {getUserFromToken} from './utils/auth';
-import {createLoaders} from './utils/dataLoaders';
+import {getUserFromToken} from './utils/auth.js';
+import {createLoaders} from './utils/dataLoaders.js';
 import {GraphQLError} from 'graphql';
+import {gql} from 'graphql-tag';
 import {
     createComplexityRule,
     simpleEstimator,
     fieldExtensionsEstimator
 } from 'graphql-query-complexity';
-import {getComplexityForField} from './utils/complexityConfig';
+import {getComplexityForField} from './utils/complexityConfig.js';
 import {PubSub} from 'graphql-subscriptions';
 // Import the correct modules
 import {WebSocketServer} from 'ws';
 // Disable TypeScript checking for this import
-// @ts-ignore
-import {useServer} from 'graphql-ws/use/ws';
+
+import {Context} from 'graphql-ws';
 import {makeExecutableSchema} from '@graphql-tools/schema';
+import {resolvers} from "./graphql/resolvers.js";
+import {useServer} from "graphql-ws/lib/use/ws";
+
+export const typeDefs = gql`
+    type User {
+        id: ID!
+        name: String!
+        email: String!
+        createdAt: String!
+        updatedAt: String!
+        events: [Event!]
+        attendingEvents: [Event!]
+    }
+
+    type Event {
+        id: ID!
+        title: String!
+        description: String!
+        date: String!
+        time: String!
+        location: String!
+        imageUrl: String
+        creator: User!
+        attendees: [User!]
+        createdAt: String!
+        updatedAt: String!
+    }
+
+    type AuthData {
+        userId: ID!
+        token: String!
+        tokenExpiration: Int!
+    }
+
+    type PageInfo {
+        hasNextPage: Boolean!
+        hasPreviousPage: Boolean!
+        currentPage: Int!
+        totalPages: Int!
+    }
+
+    type EventConnection {
+        edges: [Event!]!
+        pageInfo: PageInfo!
+        totalCount: Int!
+    }
+
+    type UserConnection {
+        edges: [User!]!
+        pageInfo: PageInfo!
+        totalCount: Int!
+    }
+
+    input EventInput {
+        title: String!
+        description: String!
+        date: String!
+        time: String!
+        location: String!
+        imageUrl: String
+    }
+
+    input UserInput {
+        name: String!
+        email: String!
+        password: String!
+    }
+
+    input PaginationInput {
+        page: Int
+        limit: Int
+    }
+
+    type Query {
+        events(pagination: PaginationInput): EventConnection!
+        event(id: ID!): Event
+        users(pagination: PaginationInput): UserConnection!
+        user(id: ID!): User
+        me: User
+        eventsByDate(date: String!, pagination: PaginationInput): EventConnection!
+        eventsByLocation(location: String!, pagination: PaginationInput): EventConnection!
+        eventsByUser(userId: ID!, pagination: PaginationInput): EventConnection!
+        myEvents(pagination: PaginationInput): EventConnection!
+        myAttendingEvents(pagination: PaginationInput): EventConnection!
+    }
+
+    type Mutation {
+        createUser(userInput: UserInput): AuthData!
+        login(email: String!, password: String!): AuthData!
+        createEvent(eventInput: EventInput!): Event!
+        updateEvent(id: ID!, eventInput: EventInput!): Event!
+        deleteEvent(id: ID!): Boolean!
+        attendEvent(eventId: ID!): Event!
+        cancelAttendance(eventId: ID!): Event!
+    }
+
+    type Subscription {
+        eventCreated: Event!
+        eventUpdated(eventId: ID): Event!
+        eventDeleted: ID!
+        userJoinedEvent(eventId: ID!): User!
+        userLeftEvent(eventId: ID!): User!
+    }
+`;
 
 // Load environment variables
 dotenv.config();
@@ -36,7 +139,6 @@ if (!process.env.JWT_SECRET) {
 
 // Create an Express application
 const app = express();
-
 
 
 // Add health check endpoint
@@ -84,12 +186,14 @@ const connectToMongoDB = async () => {
     return false;
 };
 
-connectToMongoDB();
+if (process.env.NODE_ENV !== 'test') {
+    connectToMongoDB();
+}
 
 
 // Create Apollo Server
 const startApolloServer = async () => {
-    const schema = makeExecutableSchema({ typeDefs, resolvers });
+    const schema = makeExecutableSchema({typeDefs, resolvers});
 
     const wsServer = new WebSocketServer({
         server: httpServer,
@@ -98,16 +202,16 @@ const startApolloServer = async () => {
 
     const serverCleanup = useServer({
         schema,
-        context: async (ctx) => {
+        context: async (ctx: Context) => {
             // This is the context for the subscription connections
-            return { pubsub };
+            return {pubsub};
         },
     }, wsServer);
 
     const server = new ApolloServer({
         schema,
         plugins: [
-            ApolloServerPluginDrainHttpServer({ httpServer }),
+            ApolloServerPluginDrainHttpServer({httpServer}),
             {
                 async serverWillStart() {
                     return {
@@ -118,28 +222,28 @@ const startApolloServer = async () => {
                 },
             },
         ],
-        validationRules: [
-            createComplexityRule({
-                estimators: [
-                    fieldExtensionsEstimator(),
-                    simpleEstimator({ defaultComplexity: 1 }),
-                ],
-                maximumComplexity: 1000,
-                onComplete: (complexity: number) => {
-                    console.log('Query Complexity:', complexity);
-                },
-            }),
-        ],
+        // validationRules: [
+        //     createComplexityRule({
+        //         estimators: [
+        //             fieldExtensionsEstimator(),
+        //             simpleEstimator({defaultComplexity: 1}),
+        //         ],
+        //         maximumComplexity: 1000,
+        //         onComplete: (complexity: number) => {
+        //             console.log('Query Complexity:', complexity);
+        //         },
+        //     }),
+        // ],
     });
 
     await server.start();
 
     app.use('/graphql', cors<cors.CorsRequest>(), express.json(), expressMiddleware(server, {
-        context: async ({ req }) => {
+        context: async ({req}: { req: Request }) => {
             const token = req.headers.authorization || '';
             const user = await getUserFromToken(token);
             const loaders = createLoaders();
-            return { req, user, loaders, pubsub };
+            return {req, user, loaders, pubsub};
         },
     }));
 
