@@ -1,7 +1,9 @@
-import {createLoaders} from '../dataLoaders.js';
-import {User} from '../../models/User.js';
-import {Event} from '../../models/Event.js';
 import {Types} from 'mongoose';
+
+import {Event} from '../../models/Event.js';
+import {User} from '../../models/User.js';
+import {createLoaders} from '../dataLoaders.js';
+
 
 // Mock mongoose models
 jest.mock('../../models/User', () => ({

@@ -1,7 +1,8 @@
 import DataLoader from 'dataloader';
 import {Types} from 'mongoose';
-import {User, IUser} from '../models/User.js';
+
 import {Event, IEvent} from '../models/Event.js';
+import {User, IUser} from '../models/User.js';
 
 /**
  * Create DataLoader instances for User and Event models

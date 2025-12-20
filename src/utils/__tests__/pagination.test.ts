@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+
 import {paginateQuery} from '../pagination.js';
 
 // Mock mongoose Query

@@ -1,5 +1,6 @@
-import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+
 import {generateToken, verifyPassword, hashPassword, getUserFromToken, requireAuth} from '../auth.js';
 
 // Mock bcrypt and jwt
