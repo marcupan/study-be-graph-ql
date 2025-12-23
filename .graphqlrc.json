@@ -1,0 +1,7 @@
+{
+  "schema": "src/graphql/typeDefs.ts",
+  "documents": [
+    "frontend/**/*.graphql",
+    "graphql/tests/**/*.graphql"
+  ]
+}
