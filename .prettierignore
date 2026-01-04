@@ -1,0 +1,33 @@
+# Dependencies
+node_modules
+.pnp
+.pnp.js
+
+# Production
+dist
+build
+coverage
+
+# Misc
+.DS_Store
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Testing
+coverage
+.nyc_output
+
+# Frontend
+frontend
+
+# Git
+.git
+.gitignore

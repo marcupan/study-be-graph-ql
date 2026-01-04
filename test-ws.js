@@ -1,2 +1,3 @@
 const ws = require('ws');
-console.log('ws module loaded successfully:', !!ws);
+
+console.error('ws module loaded successfully:', !!ws);

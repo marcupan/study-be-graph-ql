@@ -1,28 +1,45 @@
 {
   "compilerOptions": {
-    "target": "es2018",
-    "module": "esnext",
-    "lib": [
-      "es2018",
-      "esnext.asynciterable"
-    ],
+    // Language and Environment
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+
+    // Emit
     "outDir": "./dist",
     "rootDir": "./src",
-    "strict": true,
+    "sourceMap": true,
+    "newLine": "lf",
+    "removeComments": false,
+
+    // Interop Constraints
     "esModuleInterop": true,
-    "skipLibCheck": true,
+    "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true,
-    "moduleResolution": "bundler"
+
+    // Type Checking
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "exactOptionalPropertyTypes": true,
+    "useDefineForClassFields": true,
+    "useUnknownInCatchVariables": true,
+
+    // Completeness
+    "skipLibCheck": true,
+    "resolveJsonModule": true
   },
   "ts-node": {
-    "esm": true
+    "esm": true,
+    "experimentalEsm": true,
+    "compilerOptions": {
+      "module": "ES2022"
+    }
   },
-  "include": [
-    "src/**/*"
-  ],
-  "exclude": [
-    "node_modules",
-    "**/*.test.ts"
-  ]
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist", "coverage", "frontend", "**/*.test.ts", "**/*.spec.ts"]
 }
