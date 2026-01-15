@@ -1,3 +1,3 @@
-import {resolvers} from './resolvers/index.js';
+import { resolvers } from './resolvers/index.js';
 
-export {resolvers};
+export { resolvers };
