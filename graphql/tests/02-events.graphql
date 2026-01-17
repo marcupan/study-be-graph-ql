@@ -1,0 +1,153 @@
+# ----------------------------------------
+# EVENT OPERATIONS
+#
+# Note: Most of these operations require an authentication token.
+# Run the Login or CreateUser mutation from '01-users.graphql' first,
+# then configure your IDE with the token.
+# ----------------------------------------
+
+# 1. Create a new event (requires auth)
+mutation CreateEvent($eventInput: EventInput!) {
+  createEvent(eventInput: $eventInput) {
+    id
+    title
+    description
+    date
+    location
+    creator {
+      id
+      name
+    }
+  }
+}
+
+# Example variables for CreateEvent:
+# {
+#   "eventInput": {
+#     "title": "GraphQL Meetup",
+#     "description": "A deep dive into GraphQL.",
+#     "date": "2026-01-15",
+#     "time": "18:00",
+#     "location": "Tech Hub Auditorium"
+#   }
+# }
+
+# ----------------------------------------
+
+# 2. Get all events
+query GetEvents {
+  events {
+    totalCount
+    edges {
+      id
+      title
+      date
+      location
+      creator {
+        name
+      }
+    }
+  }
+}
+
+# ----------------------------------------
+
+# 3. Get a single event by its ID
+# Replace "EVENT_ID" with an actual event ID from the GetEvents query.
+query GetEventById($eventId: ID!) {
+  event(id: $eventId) {
+    id
+    title
+    description
+    date
+    time
+    location
+    creator {
+      id
+      name
+    }
+    attendees {
+      id
+      name
+    }
+  }
+}
+
+# Example variables for GetEventById:
+# {
+#   "eventId": "your_event_id_here"
+# }
+
+# ----------------------------------------
+
+# 4. Attend an event (requires auth)
+mutation AttendEvent($eventId: ID!) {
+  attendEvent(eventId: $eventId) {
+    id
+    title
+    attendees {
+      id
+      name
+    }
+  }
+}
+
+# Example variables for AttendEvent:
+# {
+#   "eventId": "your_event_id_here"
+# }
+
+# ----------------------------------------
+
+# 5. Cancel attendance for an event (requires auth)
+mutation CancelAttendance($eventId: ID!) {
+  cancelAttendance(eventId: $eventId) {
+    id
+    title
+    attendees {
+      id
+      name
+    }
+  }
+}
+
+# Example variables for CancelAttendance:
+# {
+#   "eventId": "your_event_id_here"
+# }
+
+# ----------------------------------------
+
+# 6. Update an event you created (requires auth)
+mutation UpdateEvent($eventId: ID!, $eventInput: EventInput!) {
+  updateEvent(id: $eventId, eventInput: $eventInput) {
+    id
+    title
+    description
+    location
+  }
+}
+
+# Example variables for UpdateEvent:
+# {
+#   "eventId": "your_event_id_here",
+#   "eventInput": {
+#     "title": "Updated GraphQL Meetup",
+#     "description": "An updated deep dive into GraphQL.",
+#     "date": "2026-01-15",
+#     "time": "18:30",
+#     "location": "Tech Hub Main Hall"
+#   }
+# }
+
+# ----------------------------------------
+
+# 7. Delete an event you created (requires auth)
+mutation DeleteEvent($eventId: ID!) {
+  deleteEvent(id: $eventId)
+}
+
+# Example variables for DeleteEvent:
+# {
+#   "eventId": "your_event_id_here"
+# }

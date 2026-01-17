@@ -1,0 +1,73 @@
+# ----------------------------------------
+# SUBSCRIPTION OPERATIONS
+#
+# Subscriptions allow you to listen for real-time events from the server.
+# When you run a subscription, it will open a connection and wait for events.
+# To test, run one of these subscriptions and then trigger the corresponding
+# mutation in a separate tab or GraphQL client (e.g., run CreateEvent).
+# ----------------------------------------
+
+# 1. Subscribe to new events being created
+subscription EventCreated {
+  eventCreated {
+    id
+    title
+    creator {
+      name
+    }
+  }
+}
+
+# ----------------------------------------
+
+# 2. Subscribe to updates for a specific event
+# Note: This subscription requires an eventId variable.
+subscription EventUpdated($eventId: ID!) {
+  eventUpdated(eventId: $eventId) {
+    id
+    title
+    description
+  }
+}
+
+# Example variables for EventUpdated:
+# {
+#   "eventId": "your_event_id_here"
+# }
+
+# ----------------------------------------
+
+# 3. Subscribe to event deletions
+subscription EventDeleted {
+  eventDeleted
+}
+
+# ----------------------------------------
+
+# 4. Subscribe to new attendees joining an event
+subscription UserJoinedEvent($eventId: ID!) {
+  userJoinedEvent(eventId: $eventId) {
+    id
+    name
+  }
+}
+
+# Example variables for UserJoinedEvent:
+# {
+#   "eventId": "your_event_id_here"
+# }
+
+# ----------------------------------------
+
+# 5. Subscribe to users leaving an event
+subscription UserLeftEvent($eventId: ID!) {
+  userLeftEvent(eventId: $eventId) {
+    id
+    name
+  }
+}
+
+# Example variables for UserLeftEvent:
+# {
+#   "eventId": "your_event_id_here"
+# }

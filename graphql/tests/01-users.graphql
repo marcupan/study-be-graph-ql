@@ -1,0 +1,80 @@
+# ----------------------------------------
+# USER OPERATIONS
+# ----------------------------------------
+
+# 1. Create a new user
+# To execute, click the "play" button next to the mutation name.
+# You will be prompted to enter variables for the "userInput".
+mutation CreateUser($userInput: UserInput!) {
+  createUser(userInput: $userInput) {
+    userId
+    token
+    tokenExpiration
+  }
+}
+
+# Example variables for CreateUser:
+# {
+#   "userInput": {
+#     "name": "John Doe",
+#     "email": "john.doe@example.com",
+#     "password": "password123"
+#   }
+# }
+
+# ----------------------------------------
+
+# 2. Login as an existing user
+# Use the credentials you just created.
+mutation Login($email: String!, $password: String!) {
+  login(email: $email, password: $password) {
+    userId
+    token
+    tokenExpiration
+  }
+}
+
+# Example variables for Login:
+# {
+#   "email": "john.doe@example.com",
+#   "password": "password123"
+# }
+
+# ----------------------------------------
+
+# 3. Get the current user's profile
+# This query requires an authentication token.
+# See docs/manual-api-testing.md for instructions on how to add the token to your IDE.
+query GetMe {
+  me {
+    id
+    name
+    email
+  }
+}
+
+# ----------------------------------------
+
+# 4. Get a list of all users (with pagination)
+query GetUsers($page: Int, $limit: Int) {
+  users(pagination: { page: $page, limit: $limit }) {
+    totalCount
+    pageInfo {
+      currentPage
+      totalPages
+      hasNextPage
+      hasPreviousPage
+    }
+    edges {
+      id
+      name
+      email
+    }
+  }
+}
+
+# Example variables for GetUsers:
+# {
+#   "page": 1,
+#   "limit": 5
+# }
