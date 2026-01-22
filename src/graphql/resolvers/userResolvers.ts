@@ -12,6 +12,12 @@ interface UserInput {
   password: string;
 }
 
+interface UpdateUserInput {
+  name?: string;
+  email?: string;
+  password?: string;
+}
+
 interface LoginInput {
   email: string;
   password: string;
@@ -151,6 +157,47 @@ export const userResolvers = {
         throw err;
       }
     },
+    updateUser: requireAuth(
+      async (
+        _: unknown,
+        { updateUserInput }: { updateUserInput: UpdateUserInput },
+        { user }: Context,
+      ) => {
+        try {
+          const { name, email, password } = updateUserInput;
+          const updateData: UpdateUserInput = {};
+
+          if (name) updateData.name = name;
+          if (email) updateData.email = email;
+          if (password) {
+            updateData.password = await hashPassword(password);
+          }
+
+          const updatedUser = await User.findByIdAndUpdate(user!.id, updateData, { new: true });
+
+          if (!updatedUser) {
+            throw new GraphQLError('User not found', { extensions: { code: 'NOT_FOUND' } });
+          }
+
+          return updatedUser;
+        } catch (err) {
+          throw err;
+        }
+      },
+    ),
+    deleteUser: requireAuth(async (_: unknown, __: unknown, { user }: Context) => {
+      try {
+        const deletedUser = await User.findByIdAndDelete(user!.id);
+
+        if (!deletedUser) {
+          throw new GraphQLError('User not found', { extensions: { code: 'NOT_FOUND' } });
+        }
+
+        return true;
+      } catch (err) {
+        throw err;
+      }
+    }),
   },
   User: {
     events: async (parent: IUser, _: unknown, { loaders }: Context): Promise<unknown> => {

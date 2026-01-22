@@ -65,6 +65,12 @@ export const typeDefs = gql`
     password: String!
   }
 
+  input UpdateUserInput {
+    name: String
+    email: String
+    password: String
+  }
+
   input PaginationInput {
     page: Int
     limit: Int
@@ -86,6 +92,8 @@ export const typeDefs = gql`
   type Mutation {
     createUser(userInput: UserInput): AuthData!
     login(email: String!, password: String!): AuthData!
+    updateUser(updateUserInput: UpdateUserInput): User!
+    deleteUser: Boolean!
     createEvent(eventInput: EventInput!): Event!
     updateEvent(id: ID!, eventInput: EventInput!): Event!
     deleteEvent(id: ID!): Boolean!

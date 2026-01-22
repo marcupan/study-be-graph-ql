@@ -122,8 +122,23 @@ describe('User Resolvers', () => {
         expect(mockContext.loaders.userLoader.load).toHaveBeenCalledWith('1');
         expect(result).toEqual(mockUser);
       });
+
+      it('should throw an error if the user loader fails', async () => {
+        const mockContext = {
+          user: { id: '1' },
+          loaders: {
+            userLoader: {
+              load: jest.fn().mockRejectedValue(new Error('Loader error')),
+            },
+          },
+        };
+        await expect((userResolvers.Query.me as any)(null, {}, mockContext, {})).rejects.toThrow(
+          'User not found',
+        );
+      });
     });
   });
+
   describe('Mutation', () => {
     describe('createUser', () => {
       it('should create a new user and return auth data', async () => {
@@ -134,13 +149,8 @@ describe('User Resolvers', () => {
           password: 'password123',
         };
 
-        // Mock User.findOne to return null (user doesn't exist)
         (User.findOne as jest.Mock).mockResolvedValue(null);
-
-        // Mock hashPassword
         jest.spyOn(auth, 'hashPassword').mockResolvedValue('hashed_password');
-
-        // Mock User constructor and save
         const mockSave = jest.fn().mockResolvedValue({
           _id: '1',
           email: userInput.email,
@@ -181,7 +191,6 @@ describe('User Resolvers', () => {
           password: 'password123',
         };
 
-        // Mock User.findOne to return an existing user
         (User.findOne as jest.Mock).mockResolvedValue({
           _id: '1',
           email: userInput.email,
@@ -190,6 +199,19 @@ describe('User Resolvers', () => {
         // Act & Assert
         await expect(userResolvers.Mutation.createUser(null, { userInput })).rejects.toThrow(
           GraphQLError,
+        );
+      });
+
+      it('should throw an error if createUser fails', async () => {
+        const userInput = {
+          name: 'Test',
+          email: 'test@test.com',
+          password: 'password',
+        };
+        (User.findOne as jest.Mock).mockRejectedValue(new Error('DB error'));
+
+        await expect(userResolvers.Mutation.createUser(null, { userInput })).rejects.toThrow(
+          'DB error',
         );
       });
     });
@@ -202,17 +224,12 @@ describe('User Resolvers', () => {
           password: 'password123',
         };
 
-        // Mock User.findOne to return a user
         (User.findOne as jest.Mock).mockResolvedValue({
           _id: '1',
           email: loginInput.email,
           password: 'hashed_password',
         });
-
-        // Mock verifyPassword
         jest.spyOn(auth, 'verifyPassword').mockResolvedValue(true);
-
-        // Mock generateToken
         jest.spyOn(auth, 'generateToken').mockReturnValue('token123');
 
         // Act
@@ -233,44 +250,160 @@ describe('User Resolvers', () => {
       });
 
       it('should throw error if user not found', async () => {
-        // Arrange
         const loginInput = {
           email: 'nonexistent@example.com',
           password: 'password123',
         };
-
-        // Mock User.findOne to return null
-
         (User.findOne as jest.Mock).mockResolvedValue(null);
-
-        await expect(
-          userResolvers.Mutation.login(
-            null,
-
-            loginInput,
-          ),
-        ).rejects.toThrow(GraphQLError);
+        await expect(userResolvers.Mutation.login(null, loginInput)).rejects.toThrow(GraphQLError);
       });
 
       it('should throw error if password is invalid', async () => {
-        // Arrange
         const loginInput = {
           email: 'user@example.com',
           password: 'wrong_password',
         };
-
-        // Mock User.findOne to return a user
         (User.findOne as jest.Mock).mockResolvedValue({
           _id: '1',
           email: loginInput.email,
           password: 'hashed_password',
         });
-
-        // Mock verifyPassword to return false
         jest.spyOn(auth, 'verifyPassword').mockResolvedValue(false);
 
-        // Act & Assert
         await expect(userResolvers.Mutation.login(null, loginInput)).rejects.toThrow(GraphQLError);
+      });
+
+      it('should throw an error if login fails', async () => {
+        (User.findOne as jest.Mock).mockRejectedValue(new Error('DB error'));
+
+        await expect(
+          userResolvers.Mutation.login(null, { email: 'test@test.com', password: 'password' }),
+        ).rejects.toThrow('DB error');
+      });
+    });
+
+    describe('updateUser', () => {
+      const mockContext = { user: { id: '1' } };
+
+      it('should update a user name', async () => {
+        const updateUserInput = { name: 'New Name' };
+        const mockUpdatedUser = { _id: '1', name: 'New Name' };
+        (User.findByIdAndUpdate as jest.Mock).mockResolvedValue(mockUpdatedUser);
+
+        const resolver = userResolvers.Mutation.updateUser as Function;
+        const result = await resolver(null, { updateUserInput }, mockContext);
+
+        expect(User.findByIdAndUpdate).toHaveBeenCalledWith(
+          '1',
+          { name: 'New Name' },
+          { new: true },
+        );
+        expect(result.name).toBe('New Name');
+      });
+
+      it('should update a user password and hash it', async () => {
+        const updateUserInput = { password: 'new_password' };
+        jest.spyOn(auth, 'hashPassword').mockResolvedValue('hashed_new_password');
+        (User.findByIdAndUpdate as jest.Mock).mockResolvedValue({ _id: '1' });
+
+        const resolver = userResolvers.Mutation.updateUser as Function;
+        await resolver(null, { updateUserInput }, mockContext);
+
+        expect(auth.hashPassword).toHaveBeenCalledWith('new_password');
+        expect(User.findByIdAndUpdate).toHaveBeenCalledWith(
+          '1',
+          { password: 'hashed_new_password' },
+          { new: true },
+        );
+      });
+
+      it('should throw an error if user to update is not found', async () => {
+        (User.findByIdAndUpdate as jest.Mock).mockResolvedValue(null);
+        const resolver = userResolvers.Mutation.updateUser as Function;
+        await expect(
+          resolver(null, { updateUserInput: { name: 'test' } }, mockContext),
+        ).rejects.toThrow('User not found');
+      });
+
+      it('should re-throw other errors', async () => {
+        (User.findByIdAndUpdate as jest.Mock).mockRejectedValue(new Error('DB Error'));
+        const resolver = userResolvers.Mutation.updateUser as Function;
+        await expect(
+          resolver(null, { updateUserInput: { name: 'test' } }, mockContext),
+        ).rejects.toThrow('DB Error');
+      });
+    });
+
+    describe('deleteUser', () => {
+      const mockContext = { user: { id: '1' } };
+
+      it('should delete a user successfully', async () => {
+        (User.findByIdAndDelete as jest.Mock).mockResolvedValue({ _id: '1' });
+        const resolver = userResolvers.Mutation.deleteUser as Function;
+        const result = await resolver(null, {}, mockContext);
+
+        expect(User.findByIdAndDelete).toHaveBeenCalledWith('1');
+        expect(result).toBe(true);
+      });
+
+      it('should throw an error if user to delete is not found', async () => {
+        (User.findByIdAndDelete as jest.Mock).mockResolvedValue(null);
+        const resolver = userResolvers.Mutation.deleteUser as Function;
+        await expect(resolver(null, {}, mockContext)).rejects.toThrow('User not found');
+      });
+
+      it('should re-throw other errors', async () => {
+        (User.findByIdAndDelete as jest.Mock).mockRejectedValue(new Error('DB Error'));
+        const resolver = userResolvers.Mutation.deleteUser as Function;
+        await expect(resolver(null, {}, mockContext)).rejects.toThrow('DB Error');
+      });
+    });
+  });
+
+  describe('User field resolvers', () => {
+    describe('events', () => {
+      it('should load events for a user', async () => {
+        const mockContext = {
+          loaders: {
+            userEventsLoader: { load: jest.fn().mockResolvedValue([]) },
+          },
+        };
+        await (userResolvers.User.events as Function)({ _id: '1' }, {}, mockContext, {});
+        expect(mockContext.loaders.userEventsLoader.load).toHaveBeenCalledWith('1');
+      });
+
+      it('should handle errors', async () => {
+        const mockContext = {
+          loaders: {
+            userEventsLoader: { load: jest.fn().mockRejectedValue(new Error()) },
+          },
+        };
+        await expect(
+          (userResolvers.User.events as Function)({ _id: '1' }, {}, mockContext, {}),
+        ).rejects.toThrow('Error fetching events');
+      });
+    });
+
+    describe('attendingEvents', () => {
+      it('should load attending events for a user', async () => {
+        const mockContext = {
+          loaders: {
+            userAttendingEventsLoader: { load: jest.fn().mockResolvedValue([]) },
+          },
+        };
+        await (userResolvers.User.attendingEvents as Function)({ _id: '1' }, {}, mockContext, {});
+        expect(mockContext.loaders.userAttendingEventsLoader.load).toHaveBeenCalledWith('1');
+      });
+
+      it('should handle errors', async () => {
+        const mockContext = {
+          loaders: {
+            userAttendingEventsLoader: { load: jest.fn().mockRejectedValue(new Error()) },
+          },
+        };
+        await expect(
+          (userResolvers.User.attendingEvents as Function)({ _id: '1' }, {}, mockContext, {}),
+        ).rejects.toThrow('Error fetching attending events');
       });
     });
   });
