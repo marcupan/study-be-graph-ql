@@ -99,7 +99,6 @@ export const executeOperation = async (
       user,
     },
   });
-  console.log(response);
 
   if (response.body.kind === 'single') {
     return {

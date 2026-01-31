@@ -1,9 +1,10 @@
 'use client';
 
-import {useParams, useRouter} from 'next/navigation';
 import {useQuery, useMutation} from '@apollo/client/react';
-import {GET_EVENT, ATTEND_EVENT, CANCEL_ATTENDANCE} from '../../../graphql/events';
 import {format} from 'date-fns';
+import {useParams, useRouter} from 'next/navigation';
+
+import {GET_EVENT, ATTEND_EVENT, CANCEL_ATTENDANCE} from '../../../graphql/events';
 import {isAuthenticated, getUserId} from '../../../utils/auth';
 
 export default function EventDetailPage() {

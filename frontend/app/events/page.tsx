@@ -1,5 +1,5 @@
-import EventList from '../../components/events/EventList';
 import ProtectedRoute from '../../components/auth/ProtectedRoute';
+import EventList from '../../components/events/EventList';
 
 export default function EventsPage() {
     return (

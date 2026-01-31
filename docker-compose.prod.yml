@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  # Frontend service
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: eventflow-frontend
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_GRAPHQL_ENDPOINT=http://backend:4000/graphql
+    depends_on:
+      - backend
+    networks:
+      - eventflow-network
+
+  # Backend service
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: eventflow-backend-prod
+    restart: unless-stopped
+    ports:
+      - '4000:4000'
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://mongodb:27017/eventflow
+      - JWT_SECRET=a_very_secure_and_long_secret_key_for_production # Change this!
+      - CORS_ORIGIN=http://localhost:3000 # Assuming the service is accessed via localhost:3000
+    depends_on:
+      - mongodb
+    networks:
+      - eventflow-network
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:4000/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # MongoDB service
+  mongodb:
+    image: mongo:6
+    container_name: eventflow-mongodb-prod
+    restart: unless-stopped
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongodb-data-prod:/data/db
+    networks:
+      - eventflow-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongo mongodb:27017/test --quiet
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+# Define volumes
+volumes:
+  mongodb-data-prod:
+    driver: local
+
+# Define networks
+networks:
+  eventflow-network:
+    driver: bridge

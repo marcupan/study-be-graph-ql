@@ -1,7 +1,20 @@
 import {ApolloClient, InMemoryCache, HttpLink, split} from '@apollo/client';
-import {getMainDefinition} from '@apollo/client/utilities';
+import {setContext} from '@apollo/client/link/context';
 import {GraphQLWsLink} from '@apollo/client/link/subscriptions';
+import {getMainDefinition} from '@apollo/client/utilities';
 import {createClient} from 'graphql-ws';
+
+const authLink = setContext((_, { headers }) => {
+    // Get the authentication token from local storage if it exists
+    const token = localStorage.getItem('eventflow_token');
+    // Return the headers to the context so httpLink can read them
+    return {
+        headers: {
+            ...headers,
+            authorization: token ? `Bearer ${token}` : '',
+        }
+    }
+});
 
 // Create an HTTP link for queries and mutations
 const httpLink = new HttpLink({
@@ -15,7 +28,7 @@ const wsLink = typeof window !== 'undefined'
             url: process.env.NEXT_PUBLIC_GRAPHQL_WS_URL || 'ws://localhost:4000/graphql',
             connectionParams: () => {
                 // Get the authentication token from local storage if it exists
-                const token = localStorage.getItem('token');
+                const token = localStorage.getItem('eventflow_token');
                 return {
                     authorization: token ? `Bearer ${token}` : '',
                 };
@@ -35,9 +48,9 @@ const splitLink = typeof window !== 'undefined' && wsLink != null
             );
         },
         wsLink,
-        httpLink
+        authLink.concat(httpLink)
     )
-    : httpLink;
+    : authLink.concat(httpLink);
 
 // Create the Apollo Client instance
 const client = new ApolloClient({

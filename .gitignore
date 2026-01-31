@@ -44,3 +44,5 @@ frontend/.git/
 
 /*.md
 !README.md
+
+docs/
