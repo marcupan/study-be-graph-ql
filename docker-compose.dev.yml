@@ -1,0 +1,43 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NODE_ENV: development
+    container_name: eventflow-backend-dev
+    command: npx nodemon --watch src --ext ts --exec "npm run build && node dist/index.js"
+    restart: unless-stopped
+    ports:
+      - '4000:4000'
+    environment:
+      - NODE_ENV=development
+      - MONGODB_URI=mongodb://mongodb:27017/eventflow
+      - JWT_SECRET=your_jwt_secret_here
+      - CLIENT_ORIGINS=http://localhost:3000,https://studio.apollographql.com
+      - REQUEST_BODY_LIMIT=1mb
+    depends_on:
+      - mongodb
+    networks:
+      - eventflow-network
+    volumes:
+      - .:/app
+      - /app/node_modules
+  mongodb:
+    image: mongo:6
+    container_name: eventflow-mongodb-dev
+    restart: unless-stopped
+    ports:
+      - '27018:27017'
+    volumes:
+      - mongodb-data-dev:/data/db
+    networks:
+      - eventflow-network
+
+volumes:
+  mongodb-data-dev:
+    driver: local
+
+networks:
+  eventflow-network:
+    driver: bridge
