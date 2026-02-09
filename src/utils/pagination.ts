@@ -18,6 +18,9 @@ interface Connection<T> {
   totalCount: number;
 }
 
+interface PaginateOptions {
+  lean?: boolean;
+}
 /**
  * Apply pagination to a Mongoose query and return a Connection object
  * @param query The Mongoose query to paginate
@@ -31,6 +34,7 @@ export async function paginateQuery<T extends Document>(
   model: Model<T>,
   filter: Record<string, unknown> = {},
   pagination?: PaginationInput,
+  options?: PaginateOptions,
 ): Promise<Connection<T>> {
   // Default pagination values
   const page = pagination?.page ?? 1;
@@ -45,9 +49,15 @@ export async function paginateQuery<T extends Document>(
 
   // Apply pagination to query
   const paginatedQuery = query.skip(skip).limit(validLimit);
+  const shouldUseLean = options?.lean ?? false;
+  const queryForExecution =
+    shouldUseLean &&
+    typeof (paginatedQuery as { lean?: () => typeof paginatedQuery }).lean === 'function'
+      ? (paginatedQuery as { lean: () => typeof paginatedQuery }).lean()
+      : paginatedQuery;
 
   // Execute query to get edges
-  const edges = await paginatedQuery.exec();
+  const edges = await queryForExecution.exec();
 
   // Get total count
   const totalCount = await model.countDocuments(filter);
