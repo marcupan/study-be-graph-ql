@@ -86,7 +86,7 @@ describe('Event Resolvers', () => {
         expect(result).toEqual(mockEvent);
       });
 
-      it('should throw error if event not found', async () => {
+      it('should return null if event not found', async () => {
         // Arrange
         const mockContext = {
           loaders: {
@@ -96,10 +96,11 @@ describe('Event Resolvers', () => {
           },
         };
 
-        // Act & Assert
-        await expect(
-          eventResolvers.Query.event(null, { id: '999' }, mockContext as any),
-        ).rejects.toThrow('Event not found');
+        // Act
+        const result = await eventResolvers.Query.event(null, { id: '999' }, mockContext as any);
+
+        // Assert
+        expect(result).toBeNull();
       });
     });
 
@@ -399,7 +400,7 @@ describe('Event Resolvers', () => {
             { id: new mongoose.Types.ObjectId().toHexString(), eventInput: {} },
             mockContext,
           ),
-        ).rejects.toThrow('Some other error');
+        ).rejects.toThrow('Error updating event');
       });
     });
 
@@ -449,7 +450,7 @@ describe('Event Resolvers', () => {
         (Event.findById as jest.Mock).mockRejectedValue(new Error('Some other error'));
         await expect(
           (eventResolvers.Mutation.deleteEvent as any)(null, { id: eventId }, mockContext),
-        ).rejects.toThrow('Some other error');
+        ).rejects.toThrow('Error deleting event');
       });
     });
 
@@ -535,7 +536,7 @@ describe('Event Resolvers', () => {
             { eventId: new mongoose.Types.ObjectId().toHexString() },
             mockContext,
           ),
-        ).rejects.toThrow('Some other error');
+        ).rejects.toThrow('Error attending event');
       });
     });
 
@@ -593,7 +594,7 @@ describe('Event Resolvers', () => {
         (Event.findById as jest.Mock).mockRejectedValue(new Error('Some other error'));
         await expect(
           (eventResolvers.Mutation.cancelAttendance as any)(null, { eventId }, mockContext),
-        ).rejects.toThrow('Some other error');
+        ).rejects.toThrow('Error canceling attendance');
       });
     });
   });

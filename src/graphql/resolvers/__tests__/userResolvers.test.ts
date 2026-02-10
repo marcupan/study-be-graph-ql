@@ -81,7 +81,7 @@ describe('User Resolvers', () => {
         expect(result).toEqual(mockUser);
       });
 
-      it('should throw error if user not found', async () => {
+      it('should return null if user not found', async () => {
         // Arrange
         const mockContext = {
           loaders: {
@@ -91,10 +91,11 @@ describe('User Resolvers', () => {
           },
         };
 
-        // Act & Assert
-        await expect(
-          userResolvers.Query.user(null, { id: '999' }, mockContext as any),
-        ).rejects.toThrow('User not found');
+        // Act
+        const result = await userResolvers.Query.user(null, { id: '999' }, mockContext as any);
+
+        // Assert
+        expect(result).toBeNull();
       });
     });
 
@@ -133,7 +134,7 @@ describe('User Resolvers', () => {
           },
         };
         await expect((userResolvers.Query.me as any)(null, {}, mockContext, {})).rejects.toThrow(
-          'User not found',
+          'Error fetching user',
         );
       });
     });
@@ -211,7 +212,7 @@ describe('User Resolvers', () => {
         (User.findOne as jest.Mock).mockRejectedValue(new Error('DB error'));
 
         await expect(userResolvers.Mutation.createUser(null, { userInput })).rejects.toThrow(
-          'DB error',
+          'Error creating user',
         );
       });
     });
@@ -278,7 +279,7 @@ describe('User Resolvers', () => {
 
         await expect(
           userResolvers.Mutation.login(null, { email: 'test@test.com', password: 'password' }),
-        ).rejects.toThrow('DB error');
+        ).rejects.toThrow('Error logging in');
       });
     });
 
@@ -330,7 +331,7 @@ describe('User Resolvers', () => {
         const resolver = userResolvers.Mutation.updateUser as Function;
         await expect(
           resolver(null, { updateUserInput: { name: 'test' } }, mockContext),
-        ).rejects.toThrow('DB Error');
+        ).rejects.toThrow('Error updating user');
       });
     });
 
@@ -355,7 +356,7 @@ describe('User Resolvers', () => {
       it('should re-throw other errors', async () => {
         (User.findByIdAndDelete as jest.Mock).mockRejectedValue(new Error('DB Error'));
         const resolver = userResolvers.Mutation.deleteUser as Function;
-        await expect(resolver(null, {}, mockContext)).rejects.toThrow('DB Error');
+        await expect(resolver(null, {}, mockContext)).rejects.toThrow('Error deleting user');
       });
     });
   });
