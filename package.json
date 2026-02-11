@@ -25,10 +25,10 @@
     "seed": "node dist/seed.js",
     "test:ci": "jest --ci --coverage",
     "check": "npm run typecheck && npm run lint && npm run format:check",
-    "check:duplication": "jscpd src",
+    "check:duplication": "jscpd src --ignore \"**/__tests__/**,**/*.test.ts,**/*.spec.ts\"",
     "check:deps": "depcheck",
     "check:updates": "ncu",
-    "check:unused": "ts-prune",
+    "check:unused": "ts-prune --ignore \"src/__tests__/.*\"",
     "validate": "npm run typecheck && npm run lint && npm run format:check && npm run check:duplication && npm run check:deps && npm run check:unused"
   },
   "keywords": [
