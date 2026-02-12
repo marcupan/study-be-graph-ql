@@ -1,24 +1,30 @@
 import { subscriptionResolvers, TOPICS } from '../subscriptionResolvers.js';
 
+type SubscribeFn = (...args: unknown[]) => unknown;
+type WithFilterFn = SubscribeFn & { filter?: (payload: unknown, variables: unknown) => boolean };
+type SubscribeContext = NonNullable<
+  Parameters<typeof subscriptionResolvers.Subscription.eventCreated.subscribe>[2]
+>;
+
 // Mock the withFilter function to test its arguments
 jest.mock('graphql-subscriptions', () => ({
   ...jest.requireActual('graphql-subscriptions'),
   withFilter: jest.fn((fn, filter) => {
     // Return a function that we can inspect
-    const newFn = fn as any;
+    const newFn = fn as WithFilterFn;
     newFn.filter = filter;
     return newFn;
   }),
 }));
 
 describe('Subscription Resolvers', () => {
-  let mockPubSub: any;
-  let mockContext: any;
+  let mockPubSub: SubscribeContext['pubsub'];
+  let mockContext: SubscribeContext;
 
   beforeEach(() => {
     mockPubSub = {
       asyncIterator: jest.fn(() => 'test-iterator'),
-    };
+    } as unknown as SubscribeContext['pubsub'];
     mockContext = { pubsub: mockPubSub };
     jest.clearAllMocks();
   });
@@ -31,7 +37,7 @@ describe('Subscription Resolvers', () => {
 
     it('should throw an error if pubsub is not in the context', () => {
       expect(() =>
-        subscriptionResolvers.Subscription.eventCreated.subscribe(null, null, {} as any),
+        subscriptionResolvers.Subscription.eventCreated.subscribe(null, null, undefined),
       ).toThrow('PubSub not available in context');
     });
   });
@@ -44,14 +50,14 @@ describe('Subscription Resolvers', () => {
 
     it('should throw an error if pubsub is not in the context', () => {
       expect(() =>
-        subscriptionResolvers.Subscription.eventDeleted.subscribe(null, null, {} as any),
+        subscriptionResolvers.Subscription.eventDeleted.subscribe(null, null, undefined),
       ).toThrow('PubSub not available in context');
     });
   });
 
   describe('eventUpdated', () => {
     const { subscribe } = subscriptionResolvers.Subscription.eventUpdated;
-    const filter = (subscribe as any).filter;
+    const filter = (subscribe as WithFilterFn).filter!;
 
     it('should subscribe to the EVENT_UPDATED topic', () => {
       subscribe(null, null, mockContext);
@@ -59,7 +65,7 @@ describe('Subscription Resolvers', () => {
     });
 
     it('should throw an error if pubsub is not in the context', () => {
-      expect(() => subscribe(null, null, {} as any)).toThrow('PubSub not available in context');
+      expect(() => subscribe(null, null, undefined)).toThrow('PubSub not available in context');
     });
 
     it('filter should return true if eventId matches', () => {
@@ -89,7 +95,7 @@ describe('Subscription Resolvers', () => {
 
   describe('userJoinedEvent', () => {
     const { subscribe } = subscriptionResolvers.Subscription.userJoinedEvent;
-    const filter = (subscribe as any).filter;
+    const filter = (subscribe as WithFilterFn).filter!;
 
     it('should subscribe to the USER_JOINED_EVENT topic', () => {
       subscribe(null, null, mockContext);
@@ -97,7 +103,7 @@ describe('Subscription Resolvers', () => {
     });
 
     it('should throw an error if pubsub is not in the context', () => {
-      expect(() => subscribe(null, null, {} as any)).toThrow('PubSub not available in context');
+      expect(() => subscribe(null, null, undefined)).toThrow('PubSub not available in context');
     });
 
     it('filter should return true if eventId matches', () => {
@@ -121,7 +127,7 @@ describe('Subscription Resolvers', () => {
 
   describe('userLeftEvent', () => {
     const { subscribe } = subscriptionResolvers.Subscription.userLeftEvent;
-    const filter = (subscribe as any).filter;
+    const filter = (subscribe as WithFilterFn).filter!;
 
     it('should subscribe to the USER_LEFT_EVENT topic', () => {
       subscribe(null, null, mockContext);
@@ -129,7 +135,7 @@ describe('Subscription Resolvers', () => {
     });
 
     it('should throw an error if pubsub is not in the context', () => {
-      expect(() => subscribe(null, null, {} as any)).toThrow('PubSub not available in context');
+      expect(() => subscribe(null, null, undefined)).toThrow('PubSub not available in context');
     });
 
     it('filter should return true if eventId matches', () => {

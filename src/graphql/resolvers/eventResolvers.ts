@@ -3,8 +3,9 @@ import type { PubSub } from 'graphql-subscriptions';
 import { Types } from 'mongoose';
 
 import { logger } from '../../logger.js';
-import type { IEvent } from '../../models/Event.js';
 import { Event } from '../../models/Event.js';
+import type { IEvent } from '../../models/Event.js';
+import type { IUser } from '../../models/User.js';
 import { requireAuth } from '../../utils/auth.js';
 import type { Loaders } from '../../utils/dataLoaders.js';
 import { paginateQuery } from '../../utils/pagination.js';
@@ -48,6 +49,15 @@ interface Context {
   pubsub: PubSub;
 }
 
+const paginateEvents = async (
+  filter: Record<string, unknown>,
+  sort: Record<string, 1 | -1>,
+  pagination?: PaginationInput,
+): Promise<EventConnection> => {
+  const query = Event.find(filter).sort(sort);
+  return paginateQuery(query, Event, filter, pagination);
+};
+
 export const eventResolvers = {
   Query: {
     events: async (
@@ -56,9 +66,11 @@ export const eventResolvers = {
     ): Promise<EventConnection> => {
       try {
         const query = Event.find().sort({ createdAt: -1 });
+
         return await paginateQuery(query, Event, {}, pagination);
       } catch (err) {
         logger.error(err);
+
         throw new GraphQLError('Error fetching events', {
           extensions: { code: 'INTERNAL_SERVER_ERROR' },
         });
@@ -73,6 +85,7 @@ export const eventResolvers = {
         return await loaders.eventLoader.load(id);
       } catch (err) {
         logger.error(err);
+
         throw new GraphQLError('Error fetching event', {
           extensions: { code: 'INTERNAL_SERVER_ERROR' },
         });
@@ -84,19 +97,24 @@ export const eventResolvers = {
     ): Promise<EventConnection> => {
       try {
         const searchDate = new Date(date);
+
         if (Number.isNaN(searchDate.getTime())) {
           throw new GraphQLError('Invalid date provided', {
             extensions: { code: 'BAD_USER_INPUT' },
           });
         }
+
         searchDate.setHours(0, 0, 0, 0);
+
         const nextDay = new Date(searchDate);
+
         nextDay.setDate(nextDay.getDate() + 1);
+
         const filter = { date: { $gte: searchDate, $lt: nextDay } };
-        const query = Event.find(filter).sort({ time: 1 });
-        return await paginateQuery(query, Event, filter, pagination);
+        return await paginateEvents(filter, { time: 1 }, pagination);
       } catch (err) {
         logger.error(err);
+
         throw new GraphQLError('Error fetching events by date', {
           extensions: { code: 'INTERNAL_SERVER_ERROR' },
         });
@@ -114,16 +132,18 @@ export const eventResolvers = {
     ): Promise<EventConnection> => {
       try {
         const sanitizedLocation = escapeRegex(location.trim());
+
         if (!sanitizedLocation) {
           throw new GraphQLError('Location is required', {
             extensions: { code: 'BAD_USER_INPUT' },
           });
         }
+
         const filter = { location: { $regex: sanitizedLocation, $options: 'i' } };
-        const query = Event.find(filter).sort({ date: 1 });
-        return await paginateQuery(query, Event, filter, pagination);
+        return await paginateEvents(filter, { date: 1 }, pagination);
       } catch (err) {
         logger.error(err);
+
         throw new GraphQLError('Error fetching events by location', {
           extensions: { code: 'INTERNAL_SERVER_ERROR' },
         });
@@ -139,11 +159,12 @@ export const eventResolvers = {
             extensions: { code: 'BAD_USER_INPUT' },
           });
         }
+
         const filter = { creator: userId };
-        const query = Event.find(filter).sort({ createdAt: -1 });
-        return await paginateQuery(query, Event, filter, pagination);
+        return await paginateEvents(filter, { createdAt: -1 }, pagination);
       } catch (err) {
         logger.error(err);
+
         throw new GraphQLError('Error fetching events by user', {
           extensions: { code: 'INTERNAL_SERVER_ERROR' },
         });
@@ -153,10 +174,10 @@ export const eventResolvers = {
       async (_: unknown, { pagination }: { pagination?: PaginationInput }, { user }: Context) => {
         try {
           const filter = { creator: user!.id };
-          const query = Event.find(filter).sort({ createdAt: -1 });
-          return await paginateQuery(query, Event, filter, pagination);
+          return await paginateEvents(filter, { createdAt: -1 }, pagination);
         } catch (err) {
           logger.error(err);
+
           throw new GraphQLError('Error fetching your events', {
             extensions: { code: 'INTERNAL_SERVER_ERROR' },
           });
@@ -175,10 +196,10 @@ export const eventResolvers = {
       ) => {
         try {
           const filter = { attendees: user!.id };
-          const query = Event.find(filter).sort({ date: 1 });
-          return await paginateQuery(query, Event, filter, pagination);
+          return await paginateEvents(filter, { date: 1 }, pagination);
         } catch (err) {
           logger.error(err);
+
           throw new GraphQLError('Error fetching events you are attending', {
             extensions: { code: 'INTERNAL_SERVER_ERROR' },
           });
@@ -203,6 +224,7 @@ export const eventResolvers = {
           return result;
         } catch (err) {
           logger.error(err);
+
           throw new GraphQLError('Error creating event', {
             extensions: { code: 'INTERNAL_SERVER_ERROR' },
           });
@@ -223,6 +245,7 @@ export const eventResolvers = {
       ) => {
         try {
           const event = await findEventOrThrow(id);
+
           checkIsCreator(event, user!.id);
 
           const updatedEvent = await Event.findByIdAndUpdate(id, { ...eventInput }, { new: true });
@@ -245,6 +268,7 @@ export const eventResolvers = {
       async (_: unknown, { id }: { id: string }, { user, pubsub }: Context) => {
         try {
           const event = await findEventOrThrow(id);
+
           checkIsCreator(event, user!.id);
 
           await Event.findByIdAndDelete(id);
@@ -276,7 +300,13 @@ export const eventResolvers = {
             });
           }
 
-          event.attendees.push(user!.id as any);
+          if (!Types.ObjectId.isValid(user!.id)) {
+            throw new GraphQLError('Invalid user id', {
+              extensions: { code: 'BAD_USER_INPUT' },
+            });
+          }
+
+          event.attendees.push(new Types.ObjectId(user!.id));
           await event.save();
 
           const userData = await loaders.userLoader.load(user!.id);
@@ -339,21 +369,33 @@ export const eventResolvers = {
     ),
   },
   Event: {
-    creator: async (parent: IEvent, _: unknown, { loaders }: Context, _info: unknown) => {
+    creator: async (
+      parent: IEvent,
+      _: unknown,
+      { loaders }: Context,
+      _info: unknown,
+    ): Promise<IUser | null> => {
       try {
         return await loaders.userLoader.load(parent.creator.toString());
       } catch (err) {
         logger.error(err);
+
         throw new GraphQLError('Error fetching creator', {
           extensions: { code: 'INTERNAL_SERVER_ERROR' },
         });
       }
     },
-    attendees: async (parent: IEvent, _: unknown, { loaders }: Context, _info: unknown) => {
+    attendees: async (
+      parent: IEvent,
+      _: unknown,
+      { loaders }: Context,
+      _info: unknown,
+    ): Promise<IUser[]> => {
       try {
         return await loaders.eventAttendeesLoader.load(parent._id.toString());
       } catch (err) {
         logger.error(err);
+
         throw new GraphQLError('Error fetching attendees', {
           extensions: { code: 'INTERNAL_SERVER_ERROR' },
         });

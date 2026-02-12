@@ -1,6 +1,7 @@
 import { GraphQLError } from 'graphql';
 
 import { logger } from '../../logger.js';
+import type { IEvent } from '../../models/Event.js';
 import type { IUser } from '../../models/User.js';
 import { User } from '../../models/User.js';
 import { generateToken, hashPassword, verifyPassword, requireAuth } from '../../utils/auth.js';
@@ -222,7 +223,7 @@ export const userResolvers = {
     }),
   },
   User: {
-    events: async (parent: IUser, _: unknown, { loaders }: Context) => {
+    events: async (parent: IUser, _: unknown, { loaders }: Context): Promise<IEvent[]> => {
       try {
         return await loaders.userEventsLoader.load(parent._id.toString());
       } catch (err) {
@@ -232,7 +233,7 @@ export const userResolvers = {
         });
       }
     },
-    attendingEvents: async (parent: IUser, _: unknown, { loaders }: Context) => {
+    attendingEvents: async (parent: IUser, _: unknown, { loaders }: Context): Promise<IEvent[]> => {
       try {
         return await loaders.userAttendingEventsLoader.load(parent._id.toString());
       } catch (err) {

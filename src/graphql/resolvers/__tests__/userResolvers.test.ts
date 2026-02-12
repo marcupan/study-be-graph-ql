@@ -1,10 +1,12 @@
 import { GraphQLError } from 'graphql';
 
 import { User } from '../../../models/User.js';
+import type { IEvent } from '../../../models/Event.js';
+import type { IUser } from '../../../models/User.js';
+import type { Loaders } from '../../../utils/dataLoaders.js';
 import * as auth from '../../../utils/auth.js';
 import { userResolvers } from '../userResolvers.js';
 
-// Mock the models and auth utilities
 jest.mock('../../../models/User');
 jest.mock('../../../models/Event');
 jest.doMock('../../../utils/auth', () => ({
@@ -12,8 +14,7 @@ jest.doMock('../../../utils/auth', () => ({
   requireAuth: jest.fn(resolver => resolver),
 }));
 jest.mock('../../../utils/pagination', () => ({
-  // @ts-ignore
-  paginateQuery: jest.fn().mockImplementation(async (query, model, filter, pagination) => {
+  paginateQuery: jest.fn().mockImplementation(async () => {
     return {
       edges: [{ id: '1', name: 'Test User' }],
       pageInfo: {
@@ -27,6 +28,43 @@ jest.mock('../../../utils/pagination', () => ({
   }),
 }));
 
+type UserContext = Parameters<typeof userResolvers.Query.user>[2];
+type LoadFn<T> = jest.MockedFunction<(key: string) => Promise<T>>;
+
+type ContextWithMocks = UserContext & {
+  mocks: {
+    userLoaderLoad: LoadFn<IUser | null>;
+    userEventsLoaderLoad: LoadFn<IEvent[]>;
+    userAttendingEventsLoaderLoad: LoadFn<IEvent[]>;
+  };
+};
+
+const createContext = (overrides: Partial<UserContext> = {}): ContextWithMocks => {
+  const userLoaderLoad: LoadFn<IUser | null> = jest.fn();
+  const userEventsLoaderLoad: LoadFn<IEvent[]> = jest.fn();
+  const userAttendingEventsLoaderLoad: LoadFn<IEvent[]> = jest.fn();
+
+  const loaders = {
+    userLoader: { load: userLoaderLoad } as unknown as Loaders['userLoader'],
+    eventLoader: { load: jest.fn() } as unknown as Loaders['eventLoader'],
+    userEventsLoader: { load: userEventsLoaderLoad } as unknown as Loaders['userEventsLoader'],
+    userAttendingEventsLoader: {
+      load: userAttendingEventsLoaderLoad,
+    } as unknown as Loaders['userAttendingEventsLoader'],
+    eventAttendeesLoader: { load: jest.fn() } as unknown as Loaders['eventAttendeesLoader'],
+  } as Loaders;
+
+  return {
+    loaders,
+    ...overrides,
+    mocks: {
+      userLoaderLoad,
+      userEventsLoaderLoad,
+      userAttendingEventsLoaderLoad,
+    },
+  };
+};
+
 describe('User Resolvers', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -35,14 +73,10 @@ describe('User Resolvers', () => {
   describe('Query', () => {
     describe('users', () => {
       it('should return paginated users', async () => {
-        // Arrange
-        const mockFind = jest.fn().mockReturnThis();
-        (User.find as jest.Mock) = mockFind;
+        (User.find as jest.Mock) = jest.fn().mockReturnThis();
 
-        // Act
         const result = await userResolvers.Query.users(null, {});
 
-        // Assert
         expect(result).toEqual({
           edges: expect.any(Array),
           pageInfo: expect.any(Object),
@@ -51,12 +85,10 @@ describe('User Resolvers', () => {
       });
 
       it('should handle errors', async () => {
-        // Arrange
         (User.find as jest.Mock).mockImplementation(() => {
           throw new Error('Database error');
         });
 
-        // Act & Assert
         await expect(userResolvers.Query.users(null, {})).rejects.toThrow('Error fetching users');
       });
     });
@@ -64,76 +96,42 @@ describe('User Resolvers', () => {
     describe('user', () => {
       it('should return a user by ID', async () => {
         // Arrange
-        const mockUser = { id: '1', name: 'Test User' };
-        const mockContext = {
-          loaders: {
-            userLoader: {
-              load: jest.fn().mockResolvedValue(mockUser),
-            },
-          },
-        };
+        const mockUser = { id: '1', name: 'Test User' } as unknown as IUser;
+        const mockContext = createContext();
+        mockContext.mocks.userLoaderLoad.mockResolvedValue(mockUser);
 
-        // Act
-        const result = await userResolvers.Query.user(null, { id: '1' }, mockContext as any);
+        const result = await userResolvers.Query.user(null, { id: '1' }, mockContext);
 
-        // Assert
-        expect(mockContext.loaders.userLoader.load).toHaveBeenCalledWith('1');
+        expect(mockContext.mocks.userLoaderLoad).toHaveBeenCalledWith('1');
         expect(result).toEqual(mockUser);
       });
 
       it('should return null if user not found', async () => {
-        // Arrange
-        const mockContext = {
-          loaders: {
-            userLoader: {
-              load: jest.fn().mockResolvedValue(null),
-            },
-          },
-        };
+        const mockContext = createContext();
+        mockContext.mocks.userLoaderLoad.mockResolvedValue(null);
 
-        // Act
-        const result = await userResolvers.Query.user(null, { id: '999' }, mockContext as any);
+        const result = await userResolvers.Query.user(null, { id: '999' }, mockContext);
 
-        // Assert
         expect(result).toBeNull();
       });
     });
 
     describe('me', () => {
       it('should return the authenticated user', async () => {
-        // Arrange
-        const mockUser = { id: '1', name: 'Test User' };
-        const mockContext = {
-          user: { id: '1', email: 'test@example.com' },
-          loaders: {
-            userLoader: {
-              load: jest.fn().mockResolvedValue(mockUser),
-            },
-          },
-        };
+        const mockUser = { id: '1', name: 'Test User' } as unknown as IUser;
+        const mockContext = createContext({ user: { id: '1', email: 'test@example.com' } });
+        mockContext.mocks.userLoaderLoad.mockResolvedValue(mockUser);
 
-        const result = await (userResolvers.Query.me as any)(
-          null,
-          {},
-          mockContext as any,
-          {} as any,
-        );
+        const result = await userResolvers.Query.me(null, {}, mockContext, undefined);
 
-        // Assert
-        expect(mockContext.loaders.userLoader.load).toHaveBeenCalledWith('1');
+        expect(mockContext.mocks.userLoaderLoad).toHaveBeenCalledWith('1');
         expect(result).toEqual(mockUser);
       });
 
       it('should throw an error if the user loader fails', async () => {
-        const mockContext = {
-          user: { id: '1' },
-          loaders: {
-            userLoader: {
-              load: jest.fn().mockRejectedValue(new Error('Loader error')),
-            },
-          },
-        };
-        await expect((userResolvers.Query.me as any)(null, {}, mockContext, {})).rejects.toThrow(
+        const mockContext = createContext({ user: { id: '1', email: 'test@example.com' } });
+        mockContext.mocks.userLoaderLoad.mockRejectedValue(new Error('Loader error'));
+        await expect(userResolvers.Query.me(null, {}, mockContext, undefined)).rejects.toThrow(
           'Error fetching user',
         );
       });
@@ -143,7 +141,6 @@ describe('User Resolvers', () => {
   describe('Mutation', () => {
     describe('createUser', () => {
       it('should create a new user and return auth data', async () => {
-        // Arrange
         const userInput = {
           name: 'New User',
           email: 'new@example.com',
@@ -161,10 +158,8 @@ describe('User Resolvers', () => {
         }));
         jest.spyOn(auth, 'generateToken').mockReturnValue('token123');
 
-        // Act
         const result = await userResolvers.Mutation.createUser(null, { userInput });
 
-        // Assert
         expect(User.findOne).toHaveBeenCalledWith({ email: userInput.email });
         expect(auth.hashPassword).toHaveBeenCalledWith(userInput.password);
         expect(User).toHaveBeenCalledWith({
@@ -185,7 +180,6 @@ describe('User Resolvers', () => {
       });
 
       it('should throw error if user already exists', async () => {
-        // Arrange
         const userInput = {
           name: 'Existing User',
           email: 'existing@example.com',
@@ -197,7 +191,6 @@ describe('User Resolvers', () => {
           email: userInput.email,
         });
 
-        // Act & Assert
         await expect(userResolvers.Mutation.createUser(null, { userInput })).rejects.toThrow(
           GraphQLError,
         );
@@ -284,15 +277,19 @@ describe('User Resolvers', () => {
     });
 
     describe('updateUser', () => {
-      const mockContext = { user: { id: '1' } };
+      const mockContext = createContext({ user: { id: '1', email: 'test@example.com' } });
 
       it('should update a user name', async () => {
         const updateUserInput = { name: 'New Name' };
         const mockUpdatedUser = { _id: '1', name: 'New Name' };
         (User.findByIdAndUpdate as jest.Mock).mockResolvedValue(mockUpdatedUser);
 
-        const resolver = userResolvers.Mutation.updateUser as Function;
-        const result = await resolver(null, { updateUserInput }, mockContext);
+        const result = (await userResolvers.Mutation.updateUser(
+          null,
+          { updateUserInput },
+          mockContext,
+          undefined,
+        )) as { name?: string };
 
         expect(User.findByIdAndUpdate).toHaveBeenCalledWith(
           '1',
@@ -307,8 +304,7 @@ describe('User Resolvers', () => {
         jest.spyOn(auth, 'hashPassword').mockResolvedValue('hashed_new_password');
         (User.findByIdAndUpdate as jest.Mock).mockResolvedValue({ _id: '1' });
 
-        const resolver = userResolvers.Mutation.updateUser as Function;
-        await resolver(null, { updateUserInput }, mockContext);
+        await userResolvers.Mutation.updateUser(null, { updateUserInput }, mockContext, undefined);
 
         expect(auth.hashPassword).toHaveBeenCalledWith('new_password');
         expect(User.findByIdAndUpdate).toHaveBeenCalledWith(
@@ -320,28 +316,35 @@ describe('User Resolvers', () => {
 
       it('should throw an error if user to update is not found', async () => {
         (User.findByIdAndUpdate as jest.Mock).mockResolvedValue(null);
-        const resolver = userResolvers.Mutation.updateUser as Function;
         await expect(
-          resolver(null, { updateUserInput: { name: 'test' } }, mockContext),
+          userResolvers.Mutation.updateUser(
+            null,
+            { updateUserInput: { name: 'test' } },
+            mockContext,
+            undefined,
+          ),
         ).rejects.toThrow('User not found');
       });
 
       it('should re-throw other errors', async () => {
         (User.findByIdAndUpdate as jest.Mock).mockRejectedValue(new Error('DB Error'));
-        const resolver = userResolvers.Mutation.updateUser as Function;
         await expect(
-          resolver(null, { updateUserInput: { name: 'test' } }, mockContext),
+          userResolvers.Mutation.updateUser(
+            null,
+            { updateUserInput: { name: 'test' } },
+            mockContext,
+            undefined,
+          ),
         ).rejects.toThrow('Error updating user');
       });
     });
 
     describe('deleteUser', () => {
-      const mockContext = { user: { id: '1' } };
+      const mockContext = createContext({ user: { id: '1', email: 'test@example.com' } });
 
       it('should delete a user successfully', async () => {
         (User.findByIdAndDelete as jest.Mock).mockResolvedValue({ _id: '1' });
-        const resolver = userResolvers.Mutation.deleteUser as Function;
-        const result = await resolver(null, {}, mockContext);
+        const result = await userResolvers.Mutation.deleteUser(null, {}, mockContext, undefined);
 
         expect(User.findByIdAndDelete).toHaveBeenCalledWith('1');
         expect(result).toBe(true);
@@ -349,14 +352,16 @@ describe('User Resolvers', () => {
 
       it('should throw an error if user to delete is not found', async () => {
         (User.findByIdAndDelete as jest.Mock).mockResolvedValue(null);
-        const resolver = userResolvers.Mutation.deleteUser as Function;
-        await expect(resolver(null, {}, mockContext)).rejects.toThrow('User not found');
+        await expect(
+          userResolvers.Mutation.deleteUser(null, {}, mockContext, undefined),
+        ).rejects.toThrow('User not found');
       });
 
       it('should re-throw other errors', async () => {
         (User.findByIdAndDelete as jest.Mock).mockRejectedValue(new Error('DB Error'));
-        const resolver = userResolvers.Mutation.deleteUser as Function;
-        await expect(resolver(null, {}, mockContext)).rejects.toThrow('Error deleting user');
+        await expect(
+          userResolvers.Mutation.deleteUser(null, {}, mockContext, undefined),
+        ).rejects.toThrow('Error deleting user');
       });
     });
   });
@@ -364,47 +369,39 @@ describe('User Resolvers', () => {
   describe('User field resolvers', () => {
     describe('events', () => {
       it('should load events for a user', async () => {
-        const mockContext = {
-          loaders: {
-            userEventsLoader: { load: jest.fn().mockResolvedValue([]) },
-          },
-        };
-        await (userResolvers.User.events as Function)({ _id: '1' }, {}, mockContext, {});
-        expect(mockContext.loaders.userEventsLoader.load).toHaveBeenCalledWith('1');
+        const mockContext = createContext();
+        mockContext.mocks.userEventsLoaderLoad.mockResolvedValue([]);
+        const parent = { _id: '1' } as unknown as IUser;
+        await userResolvers.User.events(parent, {}, mockContext);
+        expect(mockContext.mocks.userEventsLoaderLoad).toHaveBeenCalledWith('1');
       });
 
       it('should handle errors', async () => {
-        const mockContext = {
-          loaders: {
-            userEventsLoader: { load: jest.fn().mockRejectedValue(new Error()) },
-          },
-        };
-        await expect(
-          (userResolvers.User.events as Function)({ _id: '1' }, {}, mockContext, {}),
-        ).rejects.toThrow('Error fetching events');
+        const mockContext = createContext();
+        mockContext.mocks.userEventsLoaderLoad.mockRejectedValue(new Error());
+        const parent = { _id: '1' } as unknown as IUser;
+        await expect(userResolvers.User.events(parent, {}, mockContext)).rejects.toThrow(
+          'Error fetching events',
+        );
       });
     });
 
     describe('attendingEvents', () => {
       it('should load attending events for a user', async () => {
-        const mockContext = {
-          loaders: {
-            userAttendingEventsLoader: { load: jest.fn().mockResolvedValue([]) },
-          },
-        };
-        await (userResolvers.User.attendingEvents as Function)({ _id: '1' }, {}, mockContext, {});
-        expect(mockContext.loaders.userAttendingEventsLoader.load).toHaveBeenCalledWith('1');
+        const mockContext = createContext();
+        mockContext.mocks.userAttendingEventsLoaderLoad.mockResolvedValue([]);
+        const parent = { _id: '1' } as unknown as IUser;
+        await userResolvers.User.attendingEvents(parent, {}, mockContext);
+        expect(mockContext.mocks.userAttendingEventsLoaderLoad).toHaveBeenCalledWith('1');
       });
 
       it('should handle errors', async () => {
-        const mockContext = {
-          loaders: {
-            userAttendingEventsLoader: { load: jest.fn().mockRejectedValue(new Error()) },
-          },
-        };
-        await expect(
-          (userResolvers.User.attendingEvents as Function)({ _id: '1' }, {}, mockContext, {}),
-        ).rejects.toThrow('Error fetching attending events');
+        const mockContext = createContext();
+        mockContext.mocks.userAttendingEventsLoaderLoad.mockRejectedValue(new Error());
+        const parent = { _id: '1' } as unknown as IUser;
+        await expect(userResolvers.User.attendingEvents(parent, {}, mockContext)).rejects.toThrow(
+          'Error fetching attending events',
+        );
       });
     });
   });
